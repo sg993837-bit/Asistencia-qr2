@@ -1,0 +1,109 @@
+‎<!doctype html>
+‎<html lang="es"><head><meta charset="utf-8">
+‎<meta name="viewport" content="width=device-width, initial-scale=1">
+‎<title>Asistencia Escolar QR</title>
+‎<style>
+‎:root{--bg:#f4f6fb;--card:#fff;--tx:#1b1f2a;--mu:#667085;--pr:#2563eb;--ok:#16a34a;--er:#dc2626;--bd:#e1e5ee}
+‎@media(prefers-color-scheme:dark){:root{--bg:#0f131b;--card:#1a2030;--tx:#e8ebf2;--mu:#9aa3b5;--pr:#5b8def;--bd:#2a3145}}
+‎*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+‎main{max-width:560px;margin:0 auto;padding:16px}
+‎h1{font-size:1.3rem;margin:.2em 0}
+‎.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin:12px 0}
+‎label{display:block;font-size:.85rem;color:var(--mu);margin:10px 0 4px}
+‎select,input,button{width:100%;font:inherit;padding:13px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx)}
+‎button{background:var(--pr);color:#fff;border:0;font-weight:600;margin-top:12px;cursor:pointer}
+‎button.sec{background:transparent;color:var(--pr);border:1px solid var(--pr)}
+‎button:disabled{opacity:.45}
+‎.list{max-height:46vh;overflow:auto;margin-top:8px;border:1px solid var(--bd);border-radius:10px}
+‎.it{padding:12px;border-bottom:1px solid var(--bd);cursor:pointer}.it:last-child{border:0}.it.sel{background:var(--pr);color:#fff}
+‎.msg{padding:12px;border-radius:10px;margin-top:12px;font-weight:600}
+‎.ok{background:#16a34a22;color:var(--ok)}.er{background:#dc262622;color:var(--er)}.warn{background:#f59e0b22;color:#b45309}
+‎.m{display:flex;gap:8px}.m div{flex:1;text-align:center;background:var(--bg);border-radius:10px;padding:10px}.m b{display:block;font-size:1.5rem}
+‎table{width:100%;border-collapse:collapse;font-size:.9rem}td,th{padding:8px 6px;border-bottom:1px solid var(--bd);text-align:left}
+‎.p{color:var(--ok);font-weight:600}.a{color:var(--er)}.mu{color:var(--mu);font-size:.8rem}.sc{overflow-x:auto}
+‎a{color:var(--pr);font-size:.85rem;text-decoration:none}
+‎.tx{max-height:46vh;overflow:auto;font-size:.88rem;border:1px solid var(--bd);border-radius:10px;padding:4px 12px}
+‎.chk{display:flex;gap:10px;align-items:flex-start;margin-top:14px;color:var(--tx);font-size:1rem}.chk input{width:24px;height:24px;flex:none;margin:0}
+‎</style></head><body><main>
+‎<div id="app"></div>
+‎<p class="mu" style="text-align:center"><a href="#docente">Acceso docente</a> · <a href="#">Vista estudiante</a></p>
+‎</main>
+‎<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+‎<script>
+‎/* ====== PEGA AQUI TUS 2 DATOS DE SUPABASE (ver GUIA.md) ====== */
+‎const SUPABASE_URL="https://kploffzqozrhuhjxqwnd.supabase.co";
+‎const SUPABASE_KEY="sb_publishable_geIxV0YxG9NoMRdyN2Jusw_FMBet3-J";
+‎/* ============================================================ */
+‎const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+‎const $=s=>document.querySelector(s),app=$("#app");
+‎const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+‎const HOY=new Date().toLocaleDateString("en-CA",{timeZone:"America/Bogota"});
+‎let EST=[],grade="",sel=null,msg=null,gT="1",rec={},timer=null,user=null,acepto=false,ipm={},SCH="";
+‎try{acepto=sessionStorage.getItem("ok")==="1";SCH=localStorage.getItem("sch")||""}catch(e){}
+‎
+‎async function init(){
+‎const {data,error}=await sb.from("estudiantes").select("*").order("nombre");
+‎if(error){app.innerHTML=`<div class="msg er">Error de conexión: revisa la URL y la clave en index.html.</div>`;return}
+‎EST=data;
+‎const s=await sb.auth.getSession();user=s.data.session?s.data.session.user:null;
+‎route();
+‎}
+‎function route(){clearInterval(timer);location.hash==="#docente"?teacher():student()}
+‎window.addEventListener("hashchange",()=>{msg=null;route()});
+‎
+‎function terms(){app.innerHTML=`<h1>📄 Términos y condiciones</h1><div class="card"><div class="tx"><p><b>Registro de asistencia escolar</b></p><p>Para registrar tu asistencia aceptas que:</p><ol><li>Registrarás <b>únicamente tu propia asistencia</b>, estando presente en clase. Marcar la asistencia de otra persona, o hacerlo sin estar en el colegio, es una falta disciplinaria.</li><li>Al registrar, el sistema guarda automáticamente tu nombre, curso, fecha y hora, la <b>dirección IP</b> de tu conexión y el tipo de dispositivo.</li><li>Estos datos se usan <b>solo para verificar la asistencia</b> y detectar registros indebidos. Únicamente docentes autorizados pueden consultarlos.</li><li>Los datos de estudiantes menores de edad se tratan con autorización de sus padres o acudientes, según la normativa de protección de datos personales.</li><li>Puedes pedir a la institución la consulta o supresión de tus datos.</li></ol></div>
+‎<label class="chk"><input type="checkbox" id="ac"><span>He leído y acepto los términos, incluido el registro de mi dirección IP.</span></label><button id="cn" disabled>Continuar</button></div>`;
+‎$("#ac").onchange=e=>$("#cn").disabled=!e.target.checked;
+‎$("#cn").onclick=()=>{acepto=true;try{sessionStorage.setItem("ok","1")}catch(e){}student()}}
+‎function student(){
+‎if(!acepto)return terms();
+‎const L=grade?EST.filter(e=>e.curso==grade):[];
+‎app.innerHTML=`<h1>📋 Registro de asistencia</h1><div class="mu">Hoy: ${HOY}</div>
+‎<div class="card"><label>Curso</label><select id="g"><option value="">Selecciona tu curso…</option>${[1,2,3,4,5,6,7,8,9,10,11].map(g=>`<option value="${g}" ${g==grade?"selected":""}>${g}º grado</option>`).join("")}</select>
+‎${grade?`<label>Busca tu nombre</label><input id="q" placeholder="Escribe tu nombre…" autocomplete="off"><div class="list" id="ls"></div>`:""}
+‎<button id="go" ${sel?"":"disabled"}>Registrar asistencia</button><div id="m">${msg?`<div class="msg ${msg[0]}">${esc(msg[1])}</div>`:""}</div></div>`;
+‎$("#g").onchange=e=>{grade=e.target.value;sel=null;msg=null;student()};
+‎if(grade){paint("");$("#q").oninput=e=>paint(e.target.value)}
+‎$("#go").onclick=go;
+‎}
+‎function paint(q){const ls=$("#ls");q=q.toLowerCase();
+‎const L=EST.filter(e=>e.curso==grade&&e.nombre.toLowerCase().includes(q));
+‎ls.innerHTML=L.map(e=>`<div class="it ${sel&&sel.id==e.id?"sel":""}" data-id="${e.id}">${esc(e.nombre)}</div>`).join("")||`<div class="it">No apareces en la lista de ${grade}º. Consulta con tu docente.</div>`;
+‎ls.querySelectorAll("[data-id]").forEach(el=>el.onclick=()=>{sel=EST.find(e=>e.id==el.dataset.id);msg=null;ls.querySelectorAll(".it").forEach(x=>x.classList.remove("sel"));el.classList.add("sel");$("#go").disabled=false;$("#m").innerHTML=""})}
+‎async function go(){
+‎if(!sel)return;$("#go").disabled=true;
+‎const {error}=await sb.from("asistencia").insert({estudiante_id:sel.id,curso:sel.curso,acepto_terminos:true});
+‎if(!error){msg=["ok",`✅ ¡Asistencia registrada para ${sel.nombre}!`];sel=null}
+‎else if(error.code==="23505"){msg=["warn",`⚠️ ${sel.nombre} ya registró asistencia hoy. No se permite doble registro.`]}
+‎else{msg=["er","No se pudo guardar. Intenta de nuevo o avisa a tu docente."]}
+‎student()}
+‎
+‎function teacher(){
+‎if(!user){
+‎  app.innerHTML=`<h1>🔒 Panel docente</h1><div class="card"><label>Correo</label><input id="em" type="email" autocomplete="username"><label>Contraseña</label><input id="pw" type="password" autocomplete="current-password"><button id="en">Entrar</button><div id="m"></div></div>`;
+‎  $("#en").onclick=async()=>{const {data,error}=await sb.auth.signInWithPassword({email:$("#em").value.trim(),password:$("#pw").value});
+‎   if(error){$("#m").innerHTML=`<div class="msg er">Correo o contraseña incorrectos</div>`;return}user=data.user;teacher()};return}
+‎load();timer=setInterval(load,5000);
+‎}
+‎async function load(){
+‎const {data,error}=await sb.from("asistencia").select("estudiante_id,hora,ip").eq("fecha",HOY);
+‎if(error){app.innerHTML=`<div class="msg er">Sin permiso para leer la asistencia. Verifica el SQL.</div>`;return}
+‎rec={};ipm={};data.forEach(r=>{rec[r.estudiante_id]=new Date(r.hora).toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit",timeZone:"America/Bogota"});ipm[r.estudiante_id]=r.ip||"—"});
+‎if(!document.activeElement||document.activeElement.id!=="sch")drawT();
+‎}
+‎function st(g){const L=EST.filter(e=>e.curso==g),p=L.filter(e=>rec[e.id]).length;return{t:L.length,p,a:L.length-p}}
+‎function drawT(){
+‎const s=st(gT),L=EST.filter(e=>e.curso==gT);
+‎app.innerHTML=`<h1>📊 Asistencia en vivo</h1><div class="mu">${HOY} · se actualiza cada 5 s</div>
+‎<div class="card"><label>IP del colegio (opcional): marca ⚠️ a quien registre desde otra red</label><input id="sch" value="${esc(SCH)}" placeholder="Ej: 190.25.10.4"><label>Salón</label><select id="gt">${[1,2,3,4,5,6,7,8,9,10,11].map(g=>{const x=st(g);return`<option value="${g}" ${g==gT?"selected":""}>${g}º — ${x.p}/${x.t}</option>`}).join("")}</select>
+‎<div class="m" style="margin-top:12px"><div><b>${s.t}</b>Admitidos</div><div><b class="p">${s.p}</b>Presentes</div><div><b class="a">${s.a}</b>Ausentes</div></div>
+‎<div class="sc" style="margin-top:12px"><table><tr><th>Estudiante</th><th>Estado</th><th>Hora</th><th>IP</th></tr>${L.map(e=>{const f=rec[e.id]&&SCH&&ipm[e.id]!==SCH;return`<tr><td>${esc(e.nombre)}</td><td class="${rec[e.id]?"p":"a"}">${rec[e.id]?"Presente":"Ausente"}</td><td>${rec[e.id]||"—"}</td><td class="${f?"a":""}">${rec[e.id]?esc(ipm[e.id])+(f?" ⚠️":""):"—"}</td></tr>`}).join("")}</table></div>
+‎<button id="ex">⬇️ Exportar CSV (todos los cursos)</button><button class="sec" id="so">Cerrar sesión</button></div>`;
+‎$("#gt").onchange=e=>{gT=e.target.value;drawT()};
+‎$("#sch").onchange=e=>{SCH=e.target.value.trim();try{localStorage.setItem("sch",SCH)}catch(x){}drawT()};
+‎$("#ex").onclick=()=>{let c="Fecha,Curso,Estudiante,Estado,Hora,IP\n";EST.forEach(e=>{c+=`${HOY},${e.curso}º,"${e.nombre}",${rec[e.id]?"Presente":"Ausente"},${rec[e.id]||""},${rec[e.id]?ipm[e.id]:""}\n`});
+‎  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+c],{type:"text/csv"}));a.download=`asistencia_${HOY}.csv`;a.click()};
+‎$("#so").onclick=async()=>{await sb.auth.signOut();user=null;clearInterval(timer);teacher()};
+‎}
+‎init();
+‎</script></body></html>
